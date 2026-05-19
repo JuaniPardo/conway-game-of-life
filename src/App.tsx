@@ -48,89 +48,104 @@ export function App() {
 
   const animMs = useMemo(() => (mode === 'auto' ? Math.max(70, 520 / speed) : 320), [mode, speed]);
 
-  const buildPixi = (newSize: number, gridData: boolean[][]) => {
-    if (!canvasRef.current) return;
-    canvasRef.current.innerHTML = '';
-    const containerSize = Math.min(window.innerWidth * 0.75, window.innerHeight * 0.8, 920);
-    const app = new Application();
-    app.init({ width: containerSize, height: containerSize, background: 0x0e1320, antialias: true }).then(() => {
-      canvasRef.current?.appendChild(app.canvas);
-      const cells: Graphics[] = [];
-      const gap = 1;
-      const cellSize = (containerSize - gap * (newSize - 1)) / newSize;
-      for (let x = 0; x < newSize; x++) {
-        for (let y = 0; y < newSize; y++) {
-          const g = new Graphics();
-          g.rect(y * (cellSize + gap), x * (cellSize + gap), cellSize, cellSize);
-          g.fill(gridData[x][y] ? 0xa8b7d8 : 0x2a3140);
-          app.stage.addChild(g);
-          cells.push(g);
-        }
-      }
-      pixiRef.current = { app, cells };
-    });
-  };
-
-  const paintTransition = (prev: boolean[][], next: boolean[][]) => {
+  const drawGrid = (gridData: boolean[][], transition?: { prev: boolean[][]; next: boolean[][] }) => {
     const pixi = pixiRef.current;
     if (!pixi) return;
+
     const colors = {
-      alive: 0xa8b7d8,
-      dead: 0x2a3140,
+      alive: 0xc8d4ef,
+      dead: 0x3d495f,
       dying: 0xff5370,
       reviving: 0x5ba7ff,
     };
 
-    next.forEach((row, x) => {
+    const boardSize = gridData.length;
+    const containerSize = pixi.app.renderer.width;
+    const gap = 1;
+    const cellSize = (containerSize - gap * (boardSize - 1)) / boardSize;
+
+    gridData.forEach((row, x) => {
       row.forEach((alive, y) => {
-        const idx = x * next.length + y;
+        const idx = x * boardSize + y;
         const cell = pixi.cells[idx];
-        const from = prev[x][y];
+        if (!cell) return;
         let color = alive ? colors.alive : colors.dead;
-        if (from && !alive) color = colors.dying;
-        if (!from && alive) color = colors.reviving;
+
+        if (transition) {
+          const from = transition.prev[x][y];
+          const to = transition.next[x][y];
+          if (from && !to) color = colors.dying;
+          if (!from && to) color = colors.reviving;
+        }
+
         cell.clear();
-        const containerSize = pixi.app.renderer.width;
-        const gap = 1;
-        const cellSize = (containerSize - gap * (next.length - 1)) / next.length;
         cell.rect(y * (cellSize + gap), x * (cellSize + gap), cellSize, cellSize);
         cell.fill(color);
       });
     });
 
-    window.setTimeout(() => {
-      const p = pixiRef.current;
-      if (!p) return;
-      next.forEach((row, x) => {
-        row.forEach((alive, y) => {
-          const idx = x * next.length + y;
-          const cell = p.cells[idx];
-          const containerSize = p.app.renderer.width;
-          const gap = 1;
-          const cellSize = (containerSize - gap * (next.length - 1)) / next.length;
-          cell.clear();
-          cell.rect(y * (cellSize + gap), x * (cellSize + gap), cellSize, cellSize);
-          cell.fill(alive ? colors.alive : colors.dead);
-        });
-      });
-    }, animMs);
-  };
-
-  const doStep = () => {
-    setGrid((prev) => {
-      const next = nextGrid(prev);
-      paintTransition(prev, next);
-      return next;
-    });
+    if (transition) {
+      window.setTimeout(() => drawGrid(transition.next), animMs);
+    }
   };
 
   useEffect(() => {
-    buildPixi(size, grid);
+    let cancelled = false;
+
+    const buildPixi = async () => {
+      if (!canvasRef.current) return;
+
+      pixiRef.current?.app.destroy(true, { children: true });
+      canvasRef.current.innerHTML = '';
+
+      const containerSize = Math.min(window.innerWidth * 0.75, window.innerHeight * 0.8, 920);
+      const app = new Application();
+      await app.init({ width: containerSize, height: containerSize, background: 0x0e1320, antialias: true });
+
+      if (cancelled || !canvasRef.current) {
+        app.destroy(true, { children: true });
+        return;
+      }
+
+      canvasRef.current.appendChild(app.canvas);
+      const cells: Graphics[] = [];
+      const gap = 1;
+      const cellSize = (containerSize - gap * (size - 1)) / size;
+
+      for (let x = 0; x < size; x++) {
+        for (let y = 0; y < size; y++) {
+          const g = new Graphics();
+          g.rect(y * (cellSize + gap), x * (cellSize + gap), cellSize, cellSize);
+          g.fill(0x3d495f);
+          app.stage.addChild(g);
+          cells.push(g);
+        }
+      }
+
+      pixiRef.current = { app, cells };
+      drawGrid(grid);
+    };
+
+    void buildPixi();
+
     return () => {
+      cancelled = true;
       pixiRef.current?.app.destroy(true, { children: true });
       pixiRef.current = null;
     };
   }, [size]);
+
+  useEffect(() => {
+    drawGrid(grid);
+  }, [grid]);
+
+  const doStep = () => {
+    setGrid((prev) => {
+      const next = nextGrid(prev);
+      drawGrid(next, { prev, next });
+      return next;
+    });
+  };
 
   useEffect(() => {
     if (mode !== 'auto') {
