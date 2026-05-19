@@ -3,10 +3,58 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Conway Dark Life</title>
+    <title>Conway · Dark Life</title>
+    <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
+    <main class="app">
+      <header class="panel">
+        <h1>Juego de la Vida · Conway</h1>
+
+        <section class="controls">
+          <div class="control-group">
+            <label>Tamaño de grilla</label>
+            <div class="row">
+              <button class="size-btn" data-size="24">24×24</button>
+              <button class="size-btn" data-size="40">40×40</button>
+              <button class="size-btn" data-size="64">64×64</button>
+            </div>
+            <div class="row">
+              <input id="custom-size" type="number" min="8" max="180" placeholder="Tamaño personalizado" />
+              <button id="apply-size">Aplicar</button>
+            </div>
+          </div>
+
+          <div class="control-group">
+            <label>Modo</label>
+            <div class="row">
+              <button id="step-mode" class="active">Step by step</button>
+              <button id="auto-mode">Automático</button>
+            </div>
+            <p id="hint">Step by step: presioná <kbd>Espacio</kbd> para iterar.</p>
+          </div>
+
+          <div class="control-group" id="speed-group" aria-disabled="true">
+            <label>Velocidad</label>
+            <div class="row">
+              <button class="speed-btn active" data-speed="2">x2</button>
+              <button class="speed-btn" data-speed="10">x10</button>
+              <button class="speed-btn" data-speed="100">x100</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="actions row">
+          <button id="randomize">Aleatorio</button>
+          <button id="clear">Limpiar</button>
+        </section>
+      </header>
+
+      <section class="viewer">
+        <div id="board" class="board" aria-label="Grilla del juego"></div>
+      </section>
+    </main>
+
+    <script src="script.js"></script>
   </body>
 </html>
